@@ -5,7 +5,7 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 
-merged_dat <- read_csv('Merged_Dataset.csv')
+merged_dat <- read_csv('/Users/joepopop/Desktop/GitHub/mychimyfuture/Updated_Merged_Dataset.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
   rename(community_area = community) %>% 
