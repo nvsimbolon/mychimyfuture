@@ -1,3 +1,9 @@
+# Maybe add filters for progarm type
+# also need to sum variable for each region for second graph
+
+
+
+
 library(shiny)
 library(tidyverse)
 library(skimr)
@@ -24,7 +30,7 @@ dat <- merged_dat %>%
   left_join(map_dat, by = c('Geographic Cluster Name' = 'community_area'), multiple = 'all') %>% 
   mutate(
     `Geographic Cluster Name` = tools::toTitleCase(tolower(`Geographic Cluster Name`)),
-    `Per Capita Income` = parse_number(`Per Capita Income`)) %>% 
+    ) %>% 
   mutate_at(vars(contains("Percent") | contains("Unemployment Rate")),
             ~as.numeric(sub("%|\\$|,", "", .))/100) %>% 
   janitor::clean_names() %>% 
@@ -41,7 +47,7 @@ ui <- fluidPage(
                   "Select variable",
                   choices = dat %>%
                     select_if(is.numeric) %>%
-                    select(-X1, -No, -`Average Latitude`, -`Capacity Per Capita`) %>% 
+                    select(-X1, -`Average Latitude`, -`Capacity Per Capita`) %>% 
                     names(),
                   selected = 'income'
                   ),
@@ -61,14 +67,15 @@ server <- function(input, output) {
     
     leaflet_dat <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
-      select(`Geographic Cluster Name`, `Capacity Per Capita`, Geometry) %>% 
-      mutate(label = paste0(`Geographic Cluster Name`, ": ", `Capacity Per Capita`)) %>% 
+      mutate(`Mean Capacity Per Capita` = mean(`Capacity Per Capita`)) %>% 
+      select(`Geographic Cluster Name`, `Mean Capacity Per Capita`, Geometry) %>% 
+      mutate(label = paste0(`Geographic Cluster Name`, ": ", `Mean Capacity Per Capita`)) %>% 
       distinct() %>% 
       ungroup() %>% 
       st_as_sf()
     
-    bins <- quantile(leaflet_dat$`Capacity Per Capita`, probs = c(0, 0.25, 0.5, 0.75, 1))
-    pal <- colorBin("YlOrRd", domain = leaflet_dat$`Capacity Per Capita`, bins = bins)
+    bins <- quantile(leaflet_dat$`Mean Capacity Per Capita`, probs = c(0, 0.25, 0.5, 0.75, 1))
+    pal <- colorBin("YlOrRd", domain = leaflet_dat$`Mean Capacity Per Capita`, bins = bins)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -82,7 +89,7 @@ server <- function(input, output) {
       ) %>% 
       addPolygons(
         data = leaflet_dat,
-        fillColor= ~pal(`Capacity Per Capita`), 
+        fillColor= ~pal(`Mean Capacity Per Capita`), 
         fillOpacity = 0.2,
         color = "grey",
         weight = 1.5,
@@ -91,9 +98,9 @@ server <- function(input, output) {
       addScaleBar("bottomleft") %>% 
       addLegend(
         pal = pal, 
-        values = leaflet_dat$`Capacity Per Capita`,
+        values = leaflet_dat$`Mean Capacity Per Capita`,
         opacity = 0.7, 
-        title = "Capacity Per Capita",
+        title = "Mean Capacity Per Capita",
         position = "topright"
       )
     
