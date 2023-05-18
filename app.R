@@ -11,7 +11,7 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 
-merged_dat <- read_csv('/Users/joepopop/Desktop/GitHub/mychimyfuture/Updated_Merged_Dataset.csv')
+merged_dat <- read_csv('Updated_Merged_Dataset.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
   rename(community_area = community) %>% 
@@ -110,6 +110,7 @@ server <- function(input, output) {
     
     leaflet_dat2 <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
+      mutate(!!input$variable := mean(.data[[input$variable]])) %>% 
       select(`Geographic Cluster Name`, !!input$variable, Geometry) %>% 
       mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable]])) %>% 
       distinct() %>% 

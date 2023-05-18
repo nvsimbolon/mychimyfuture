@@ -1,0 +1,14 @@
+name: mychimyfuture
+title: mychimyfuture
+username:
+account: joeomatoi
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9133193
+bundleId: 7231705
+url: https://joeomatoi.shinyapps.io/mychimyfuture/
+when: 1684370025.03451
+lastSyncTime: 1684370025.03453
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .ipynb_checkpoints/Kaggle-checkpoint.ipynb|.ipynb_checkpoints/MCMF-checkpoint.ipynb|.ipynb_checkpoints/Modeling-checkpoint.ipynb|chicago_population.CSV|Community_Areas_Documentation.rtf|convert_MCMF_ALL_TIME_DATA.csv|Data_Processing.ipynb|EDA.ipynb|Hardship_Index.csv|Kaggle.ipynb|MCMF.ipynb|Merged_Dataset.csv|Modeling.ipynb|My Chi. My Future..ipynb|README.md|Test file.ipynb|Reports
