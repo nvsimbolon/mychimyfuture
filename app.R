@@ -1,5 +1,4 @@
-# Maybe add filters for progarm type
-# also need to sum variable for each region for second graph
+# breaks are not unique means not enough data points (for quartiles)
 
 
 
@@ -11,7 +10,7 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 
-merged_dat <- read_csv('Updated_Merged_Dataset.csv')
+merged_dat <- read_csv('/Users/joepopop/Desktop/GitHub/mychimyfuture/Final_Merged_Dataset.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
   rename(community_area = community) %>% 
@@ -51,10 +50,30 @@ ui <- fluidPage(
                     names(),
                   selected = 'income'
                   ),
+      selectInput('stem',
+                  'STEM vs Non-STEM',
+                  choices = unique(c(" ", dat$Stem)),
+                  selected = character(0)
+                  ),
+      selectInput('free',
+                  'Free vs Non-Free',
+                  choices = unique(c(" ", dat$Free)),
+                  selected = character(0)
+      ),
+      selectInput('meeting_type',
+                  'Meeting Type',
+                  choices = unique(c(" ", dat$`Meeting Type`)),
+                  selected = character(0)
+      ),
+      checkboxInput('mean_median',
+                    'Mean/Median',
+                    value = FALSE)
+      
     ),
     mainPanel(
       leafletOutput("plot"),
-      leafletOutput("plot2")
+      leafletOutput("plot2"),
+      textOutput("myText")
       )
   )
 )
@@ -62,55 +81,79 @@ ui <- fluidPage(
 
 server <- function(input, output) {
   
+  output$myText <- renderText({
+    if_else(input$stem==" ", 'lol', 'lmao')
+  })
+
   # generate map
   output$plot <- renderLeaflet({
+  
+    
+    dat <- dat %>%
+      filter(
+        (Stem == input$stem | input$stem == " "),
+        (Free == input$free | input$free == " "),
+        (`Meeting Type` == input$meeting_type | input$meeting_type == " ")
+      )
     
     leaflet_dat <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
-      mutate(`Mean Capacity Per Capita` = mean(`Capacity Per Capita`)) %>% 
-      select(`Geographic Cluster Name`, `Mean Capacity Per Capita`, Geometry) %>% 
-      mutate(label = paste0(`Geographic Cluster Name`, ": ", `Mean Capacity Per Capita`)) %>% 
+      mutate(`Capacity Per Capita` = if_else(input$mean_median, mean(`Capacity Per Capita`), median(`Capacity Per Capita`))) %>% 
+      select(`Geographic Cluster Name`, `Capacity Per Capita`, Geometry) %>% 
+      mutate(label = paste0(`Geographic Cluster Name`, ": ", `Capacity Per Capita`)) %>% 
       distinct() %>% 
       ungroup() %>% 
       st_as_sf()
     
-    bins <- quantile(leaflet_dat$`Mean Capacity Per Capita`, probs = c(0, 0.25, 0.5, 0.75, 1))
+    bins <- quantile(leaflet_dat$`Capacity Per Capita`, probs = c(0, 0.25, 0.5, 0.75, 1))
     pal <- colorBin("YlOrRd", domain = leaflet_dat$`Mean Capacity Per Capita`, bins = bins)
     
-    leaflet() %>% 
-      setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
+    leaflet() %>%
+      setView(lng = -87.69, lat = 41.87, zoom = 10) %>%
       addProviderTiles(
         "OpenStreetMap",
         group = "OpenStreetMap"
-      ) %>% 
+      ) %>%
       addProviderTiles(
         "CartoDB.Positron",
         group = "CartoDB.Positron"
-      ) %>% 
+      ) %>%
       addPolygons(
         data = leaflet_dat,
-        fillColor= ~pal(`Mean Capacity Per Capita`), 
+        fillColor= ~pal(`Capacity Per Capita`),
         fillOpacity = 0.2,
         color = "grey",
         weight = 1.5,
         label = leaflet_dat$label
       ) %>%
-      addScaleBar("bottomleft") %>% 
+      addScaleBar("bottomleft") %>%
       addLegend(
-        pal = pal, 
-        values = leaflet_dat$`Mean Capacity Per Capita`,
-        opacity = 0.7, 
-        title = "Mean Capacity Per Capita",
+        pal = pal,
+        values = leaflet_dat$`Capacity Per Capita`,
+        opacity = 0.7,
+        title = paste(if_else(input$mean_median, 'Mean', 'Median'), "Capacity Per Capita"),
         position = "topright"
       )
+    
+    
+
+    
     
   })
   
   output$plot2 <- renderLeaflet({
     
+    dat <- dat %>%
+      filter(
+        (Stem == input$stem | input$stem == " "),
+        (Free == input$free | input$free == " "),
+        (`Meeting Type` == input$meeting_type | input$meeting_type == " ")
+      )
+    
     leaflet_dat2 <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
-      mutate(!!input$variable := mean(.data[[input$variable]])) %>% 
+      
+      mutate(!!input$variable := if_else(input$mean_median, mean(.data[[input$variable]]), median(.data[[input$variable]]))) %>% 
       select(`Geographic Cluster Name`, !!input$variable, Geometry) %>% 
       mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable]])) %>% 
       distinct() %>% 
@@ -143,7 +186,7 @@ server <- function(input, output) {
         pal = pal, 
         values = leaflet_dat2[[input$variable]],
         opacity = 0.7, 
-        title = input$variable,
+        title = paste(if_else(input$mean_median, 'Mean', 'Median'), input$variable),
         position = "topright"
       )
     
