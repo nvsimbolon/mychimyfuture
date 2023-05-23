@@ -10,7 +10,7 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 
-merged_dat <- read_csv('/Users/joepopop/Desktop/GitHub/mychimyfuture/Final_Merged_Dataset.csv')
+merged_dat <- read_csv('Final_Merged_Dataset.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
   rename(community_area = community) %>% 
@@ -43,13 +43,21 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("variable",
-                  "Select variable",
-                  choices = dat %>%
+                  "Select variable 1",
+                  choices = unique(dat %>%
                     select_if(is.numeric) %>%
-                    select(-X1, -`Average Latitude`, -`Capacity Per Capita`) %>% 
-                    names(),
-                  selected = 'income'
+                    select(-X1, -`Average Latitude`) %>% 
+                    names()),
+                  selected = 'Capacity Per Capita'
                   ),
+      selectInput("variable2",
+                  "Select variable 2",
+                  choices = unique(dat %>%
+                    select_if(is.numeric) %>%
+                    select(-X1, -`Average Latitude`) %>% 
+                    names()),
+                  selected = 'Total Programs'
+      ),
       selectInput('stem',
                   'STEM vs Non-STEM',
                   choices = unique(c(" ", dat$Stem)),
@@ -72,18 +80,13 @@ ui <- fluidPage(
     ),
     mainPanel(
       leafletOutput("plot"),
-      leafletOutput("plot2"),
-      textOutput("myText")
+      leafletOutput("plot2")
       )
   )
 )
 
 
 server <- function(input, output) {
-  
-  output$myText <- renderText({
-    if_else(input$stem==" ", 'lol', 'lmao')
-  })
 
   # generate map
   output$plot <- renderLeaflet({
@@ -98,43 +101,42 @@ server <- function(input, output) {
     
     leaflet_dat <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
-      mutate(`Capacity Per Capita` = if_else(input$mean_median, mean(`Capacity Per Capita`), median(`Capacity Per Capita`))) %>% 
-      select(`Geographic Cluster Name`, `Capacity Per Capita`, Geometry) %>% 
-      mutate(label = paste0(`Geographic Cluster Name`, ": ", `Capacity Per Capita`)) %>% 
+      mutate(!!input$variable := if_else(input$mean_median, mean(.data[[input$variable]]), median(.data[[input$variable]]))) %>% 
+      select(`Geographic Cluster Name`, !!input$variable, Geometry) %>% 
+      mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable]])) %>% 
       distinct() %>% 
       ungroup() %>% 
       st_as_sf()
     
-    bins <- quantile(leaflet_dat$`Capacity Per Capita`, probs = c(0, 0.25, 0.5, 0.75, 1))
-    pal <- colorBin("YlOrRd", domain = leaflet_dat$`Mean Capacity Per Capita`, bins = bins)
+    bins <- quantile(leaflet_dat[[input$variable]], probs = c(0, 0.25, 0.5, 0.75, 1))
+    pal <- colorBin("YlOrRd", domain = leaflet_dat[[input$variable]], bins = bins)
     
-    leaflet() %>%
-      setView(lng = -87.69, lat = 41.87, zoom = 10) %>%
+    leaflet() %>% 
+      setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
       addProviderTiles(
         "OpenStreetMap",
         group = "OpenStreetMap"
-      ) %>%
+      ) %>% 
       addProviderTiles(
         "CartoDB.Positron",
         group = "CartoDB.Positron"
-      ) %>%
+      ) %>% 
       addPolygons(
         data = leaflet_dat,
-        fillColor= ~pal(`Capacity Per Capita`),
+        fillColor= ~pal(leaflet_dat[[input$variable]]), 
         fillOpacity = 0.2,
         color = "grey",
         weight = 1.5,
         label = leaflet_dat$label
       ) %>%
-      addScaleBar("bottomleft") %>%
+      addScaleBar("bottomleft") %>% 
       addLegend(
-        pal = pal,
-        values = leaflet_dat$`Capacity Per Capita`,
-        opacity = 0.7,
-        title = paste(if_else(input$mean_median, 'Mean', 'Median'), "Capacity Per Capita"),
+        pal = pal, 
+        values = leaflet_dat[[input$variable]],
+        opacity = 0.7, 
+        title = paste(if_else(input$mean_median, 'Mean', 'Median'), input$variable),
         position = "topright"
       )
-    
     
 
     
@@ -153,15 +155,15 @@ server <- function(input, output) {
     leaflet_dat2 <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
       
-      mutate(!!input$variable := if_else(input$mean_median, mean(.data[[input$variable]]), median(.data[[input$variable]]))) %>% 
-      select(`Geographic Cluster Name`, !!input$variable, Geometry) %>% 
-      mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable]])) %>% 
+      mutate(!!input$variable2 := if_else(input$mean_median, mean(.data[[input$variable2]]), median(.data[[input$variable2]]))) %>% 
+      select(`Geographic Cluster Name`, !!input$variable2, Geometry) %>% 
+      mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable2]])) %>% 
       distinct() %>% 
       ungroup() %>% 
       st_as_sf()
     
-    bins <- quantile(leaflet_dat2[[input$variable]], probs = c(0, 0.25, 0.5, 0.75, 1))
-    pal <- colorBin("YlOrRd", domain = leaflet_dat2[[input$variable]], bins = bins)
+    bins <- quantile(leaflet_dat2[[input$variable2]], probs = c(0, 0.25, 0.5, 0.75, 1))
+    pal <- colorBin("YlOrRd", domain = leaflet_dat2[[input$variable2]], bins = bins)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -175,7 +177,7 @@ server <- function(input, output) {
       ) %>% 
       addPolygons(
         data = leaflet_dat2,
-        fillColor= ~pal(leaflet_dat2[[input$variable]]), 
+        fillColor= ~pal(leaflet_dat2[[input$variable2]]), 
         fillOpacity = 0.2,
         color = "grey",
         weight = 1.5,
@@ -184,9 +186,9 @@ server <- function(input, output) {
       addScaleBar("bottomleft") %>% 
       addLegend(
         pal = pal, 
-        values = leaflet_dat2[[input$variable]],
+        values = leaflet_dat2[[input$variable2]],
         opacity = 0.7, 
-        title = paste(if_else(input$mean_median, 'Mean', 'Median'), input$variable),
+        title = paste(if_else(input$mean_median, 'Mean', 'Median'), input$variable2),
         position = "topright"
       )
     
