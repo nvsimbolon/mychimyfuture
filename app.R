@@ -10,6 +10,7 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 
+setwd('/Users/joepopop/Desktop/GitHub/mychimyfuture')
 merged_dat <- read_csv('Final_Merged_Dataset.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
@@ -17,11 +18,11 @@ map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/ge
   mutate(
     community_area = toupper(community_area),
     community_area = case_when(
-    community_area == 'NEW CITY' ~ 'Back of the Yards',
-    community_area %in% c('DOUGLAS', 'GRAND BOULEVARD', 'OAKLAND') ~ 'Bronzeville/South Lakefront',
-    community_area %in% c('WEST GARFIELD PARK', 'EAST GARFIELD PARK') ~ 'GARFIELD PARK',
-    community_area == 'SOUTH LAWNDALE' ~ 'Little Village',
-    TRUE ~ community_area
+      community_area == 'NEW CITY' ~ 'Back of the Yards',
+      community_area %in% c('DOUGLAS', 'GRAND BOULEVARD', 'OAKLAND') ~ 'Bronzeville/South Lakefront',
+      community_area %in% c('WEST GARFIELD PARK', 'EAST GARFIELD PARK') ~ 'GARFIELD PARK',
+      community_area == 'SOUTH LAWNDALE' ~ 'Little Village',
+      TRUE ~ community_area
     ))
 
 # combined data
@@ -29,7 +30,7 @@ dat <- merged_dat %>%
   left_join(map_dat, by = c('Geographic Cluster Name' = 'community_area'), multiple = 'all') %>% 
   mutate(
     `Geographic Cluster Name` = tools::toTitleCase(tolower(`Geographic Cluster Name`)),
-    ) %>% 
+  ) %>% 
   mutate_at(vars(contains("Percent") | contains("Unemployment Rate")),
             ~as.numeric(sub("%|\\$|,", "", .))/100) %>% 
   janitor::clean_names() %>% 
@@ -45,24 +46,24 @@ ui <- fluidPage(
       selectInput("variable",
                   "Select variable 1",
                   choices = unique(dat %>%
-                    select_if(is.numeric) %>%
-                    select(-X1, -`Average Latitude`) %>% 
-                    names()),
+                                     select_if(is.numeric) %>%
+                                     select(-X1, -`Average Latitude`) %>% 
+                                     names()),
                   selected = 'Capacity Per Capita'
-                  ),
+      ),
       selectInput("variable2",
                   "Select variable 2",
                   choices = unique(dat %>%
-                    select_if(is.numeric) %>%
-                    select(-X1, -`Average Latitude`) %>% 
-                    names()),
-                  selected = 'Total Programs'
+                                     select_if(is.numeric) %>%
+                                     select(-X1, -`Average Latitude`) %>% 
+                                     names()),
+                  selected = 'Hardship Index Score'
       ),
       selectInput('stem',
                   'STEM vs Non-STEM',
                   choices = unique(c(" ", dat$Stem)),
                   selected = character(0)
-                  ),
+      ),
       selectInput('free',
                   'Free vs Non-Free',
                   choices = unique(c(" ", dat$Free)),
@@ -80,17 +81,18 @@ ui <- fluidPage(
     ),
     mainPanel(
       leafletOutput("plot"),
-      leafletOutput("plot2")
-      )
+      leafletOutput("plot2"),
+      leafletOutput("plot3"),
+      dataTableOutput("table")
+    )
   )
 )
 
 
 server <- function(input, output) {
-
-  # generate map
-  output$plot <- renderLeaflet({
   
+  
+  leaflet_dat <- reactive({
     
     dat <- dat %>%
       filter(
@@ -99,7 +101,11 @@ server <- function(input, output) {
         (`Meeting Type` == input$meeting_type | input$meeting_type == " ")
       )
     
-    leaflet_dat <- dat %>% 
+ 
+    
+    
+    
+    test <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
       mutate(!!input$variable := if_else(input$mean_median, mean(.data[[input$variable]]), median(.data[[input$variable]]))) %>% 
       select(`Geographic Cluster Name`, !!input$variable, Geometry) %>% 
@@ -108,6 +114,23 @@ server <- function(input, output) {
       ungroup() %>% 
       st_as_sf()
     
+    # Calculate quantile breakpoints
+    breaks <- quantile(test[[input$variable]], probs = c(0, 0.25, 0.5, 0.75, 1))
+    
+    # Assign quartile bins as factor levels
+    test$quartile1 <- cut(test[[input$variable]], breaks = breaks, labels = FALSE, include.lowest = TRUE)
+    
+    # Convert quartile column to factor with appropriate levels
+    test$quartile1 <- factor(test$quartile1, levels = 1:4)
+    
+    test
+    
+  })
+  
+  # generate map
+  output$plot <- renderLeaflet({
+    
+    leaflet_dat <- leaflet_dat()
     bins <- quantile(leaflet_dat[[input$variable]], probs = c(0, 0.25, 0.5, 0.75, 1))
     pal <- colorBin("YlOrRd", domain = leaflet_dat[[input$variable]], bins = bins)
     
@@ -138,12 +161,12 @@ server <- function(input, output) {
         position = "topright"
       )
     
-
+    
     
     
   })
   
-  output$plot2 <- renderLeaflet({
+  leaflet_dat2 <- reactive({
     
     dat <- dat %>%
       filter(
@@ -152,15 +175,33 @@ server <- function(input, output) {
         (`Meeting Type` == input$meeting_type | input$meeting_type == " ")
       )
     
-    leaflet_dat2 <- dat %>% 
+    test2 <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
-      
       mutate(!!input$variable2 := if_else(input$mean_median, mean(.data[[input$variable2]]), median(.data[[input$variable2]]))) %>% 
       select(`Geographic Cluster Name`, !!input$variable2, Geometry) %>% 
       mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable2]])) %>% 
       distinct() %>% 
       ungroup() %>% 
-      st_as_sf()
+      st_as_sf() %>% 
+      mutate(quartile2 = ntile(.data[[input$variable2]], 4))    
+    
+    
+    # Calculate quantile breakpoints
+    breaks <- quantile(test2[[input$variable2]], probs = c(0, 0.25, 0.5, 0.75, 1))
+    
+    # Assign quartile bins as factor levels
+    test2$quartile2 <- cut(test2[[input$variable2]], breaks = breaks, labels = FALSE, include.lowest = TRUE)
+    
+    # Convert quartile column to factor with appropriate levels
+    test2$quartile2 <- factor(test2$quartile2, levels = 1:4)
+    
+    test2
+    
+  })
+  
+  output$plot2 <- renderLeaflet({
+    
+    leaflet_dat2 <- leaflet_dat2()
     
     bins <- quantile(leaflet_dat2[[input$variable2]], probs = c(0, 0.25, 0.5, 0.75, 1))
     pal <- colorBin("YlOrRd", domain = leaflet_dat2[[input$variable2]], bins = bins)
@@ -193,6 +234,46 @@ server <- function(input, output) {
       )
     
   })
+  
+  leaflet_dat3 <- reactive({
+    leaflet_dat3 <- st_join(leaflet_dat(), leaflet_dat2(), join = st_within) 
+    leaflet_dat3 %>% 
+      filter(quartile1 == quartile2) 
+      
+  })
+  output$plot3 <- renderLeaflet({
+    
+    
+    leaflet_dat3 = leaflet_dat3()
+    
+    leaflet() %>% 
+      setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
+      addProviderTiles(
+        "OpenStreetMap",
+        group = "OpenStreetMap"
+      ) %>% 
+      addProviderTiles(
+        "CartoDB.Positron",
+        group = "CartoDB.Positron"
+      ) %>% 
+      addPolygons(
+        data = leaflet_dat3,
+        color = "blue",
+        fillOpacity = 0.1,
+        weight = 1.5
+      ) %>%
+      addScaleBar("bottomleft") 
+    
+    
+  })
+  
+# output$table <- renderDataTable({
+# 
+#   leaflet_dat3()
+# 
+# }
+
+  # )
   
 }
 
