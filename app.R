@@ -4,13 +4,14 @@
 
 
 library(shiny)
+library(bslib)
 library(tidyverse)
 library(skimr)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
 
-setwd('/Users/joepopop/Desktop/GitHub/mychimyfuture')
+# setwd('/Users/joepopop/Desktop/GitHub/mychimyfuture')
 merged_dat <- read_csv('Final_Merged_Dataset.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
@@ -39,12 +40,13 @@ dat <- merged_dat %>%
 
 ui <- fluidPage(
   
+  theme = bs_theme(version = 4, bootswatch = "lux", primary = "white", bg = '#f1f1fd',fg = 'grey', ),
   titlePanel(""),
   
   sidebarLayout(
     sidebarPanel(
       selectInput("variable",
-                  "Select variable 1",
+                  "Variable 1",
                   choices = unique(dat %>%
                                      select_if(is.numeric) %>%
                                      select(-X1, -`Average Latitude`) %>% 
@@ -52,7 +54,7 @@ ui <- fluidPage(
                   selected = 'Capacity Per Capita'
       ),
       selectInput("variable2",
-                  "Select variable 2",
+                  "Variable 2",
                   choices = unique(dat %>%
                                      select_if(is.numeric) %>%
                                      select(-X1, -`Average Latitude`) %>% 
@@ -80,10 +82,13 @@ ui <- fluidPage(
       
     ),
     mainPanel(
-      leafletOutput("plot"),
-      leafletOutput("plot2"),
-      leafletOutput("plot3"),
-      dataTableOutput("table")
+      fluidRow(
+        splitLayout(
+          cellWidths = c("50%", "50%"),
+          leafletOutput("plot"),
+          leafletOutput("plot2"),
+          leafletOutput("plot3")
+        ))
     )
   )
 )
@@ -101,7 +106,7 @@ server <- function(input, output) {
         (`Meeting Type` == input$meeting_type | input$meeting_type == " ")
       )
     
- 
+    
     
     
     
@@ -132,7 +137,7 @@ server <- function(input, output) {
     
     leaflet_dat <- leaflet_dat()
     bins <- quantile(leaflet_dat[[input$variable]], probs = c(0, 0.25, 0.5, 0.75, 1))
-    pal <- colorBin("YlOrRd", domain = leaflet_dat[[input$variable]], bins = bins)
+    pal <- colorBin(c('grey', '#D12D35'), domain = leaflet_dat[[input$variable]], bins = bins)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -147,8 +152,8 @@ server <- function(input, output) {
       addPolygons(
         data = leaflet_dat,
         fillColor= ~pal(leaflet_dat[[input$variable]]), 
-        fillOpacity = 0.2,
-        color = "grey",
+        fillOpacity = 0.7,
+        color = "white",
         weight = 1.5,
         label = leaflet_dat$label
       ) %>%
@@ -204,7 +209,7 @@ server <- function(input, output) {
     leaflet_dat2 <- leaflet_dat2()
     
     bins <- quantile(leaflet_dat2[[input$variable2]], probs = c(0, 0.25, 0.5, 0.75, 1))
-    pal <- colorBin("YlOrRd", domain = leaflet_dat2[[input$variable2]], bins = bins)
+    pal <- colorBin(c('grey', '#1A18A0'), domain = leaflet_dat2[[input$variable2]], bins = bins)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -219,8 +224,8 @@ server <- function(input, output) {
       addPolygons(
         data = leaflet_dat2,
         fillColor= ~pal(leaflet_dat2[[input$variable2]]), 
-        fillOpacity = 0.2,
-        color = "grey",
+        fillOpacity = 0.6,
+        color = "white",
         weight = 1.5,
         label = leaflet_dat2$label
       ) %>%
@@ -239,12 +244,14 @@ server <- function(input, output) {
     leaflet_dat3 <- st_join(leaflet_dat(), leaflet_dat2(), join = st_within) 
     leaflet_dat3 %>% 
       filter(quartile1 == quartile2) 
-      
+    
   })
   output$plot3 <- renderLeaflet({
     
     
     leaflet_dat3 = leaflet_dat3()
+    
+    pal <- colorFactor(c("white", 'grey', 'grey2', 'black'), domain = leaflet_dat3$quartile1)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -258,21 +265,30 @@ server <- function(input, output) {
       ) %>% 
       addPolygons(
         data = leaflet_dat3,
-        color = "blue",
-        fillOpacity = 0.1,
-        weight = 1.5
+        color = "white",
+        fillColor = 'black',
+        fillOpacity = 0.45,
+        weight = 1.5,
+        label = paste0(str_extract(leaflet_dat3$label.x, '[A-Za-z ]*'), ": ", leaflet_dat3$quartile1)
       ) %>%
-      addScaleBar("bottomleft") 
+      addScaleBar("bottomleft") %>% 
+      addLegend(
+        pal = pal, 
+        values = leaflet_dat3$quartile1,
+        opacity = 0.7, 
+        title = "Quartile Intersection",
+        position = "topright"
+      )
     
     
   })
   
-# output$table <- renderDataTable({
-# 
-#   leaflet_dat3()
-# 
-# }
-
+  # output$table <- renderDataTable({
+  # 
+  #   leaflet_dat3()
+  # 
+  # }
+  
   # )
   
 }
