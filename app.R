@@ -11,8 +11,8 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 
-setwd('/Users/joepopop/Desktop/GitHub/mychimyfuture')
-merged_dat <- read_csv('Final_Merged_Dataset.csv')
+# setwd('/Users/joepopop/Desktop/GitHub/mychimyfuture')
+merged_dat <- read_csv('Final_Merged_Dataset copy.csv')
 
 map_dat <- read_sf("https://raw.githubusercontent.com/thisisdaryn/data/master/geo/chicago/Comm_Areas.geojson") %>% 
   rename(community_area = community) %>% 
@@ -49,18 +49,18 @@ ui <- fluidPage(
       #             "Variable 1",
       #             choices = unique(dat %>%
       #                                select_if(is.numeric) %>%
-      #                                select(-X1, -`Average Latitude`) %>% 
+      #                                select(-X1, -`Average Latitude`) %>%
       #                                names()),
       #             selected = 'Capacity Per Capita'
       # ),
-      selectInput("variable2",
-                  "Variable 2",
-                  choices = unique(dat %>%
-                                     select_if(is.numeric) %>%
-                                     select(-X1, -`Average Latitude`) %>% 
-                                     names()),
-                  selected = 'Hardship Index Score'
-      ),
+      # selectInput("variable2",
+      #             "Variable 2",
+      #             choices = unique(dat %>%
+      #                                select_if(is.numeric) %>%
+      #                                select(-X1, -`Average Latitude`) %>% 
+      #                                names()),
+      #             selected = 'Hardship Index Score'
+      # ),
       selectInput('stem',
                   'STEM vs Non-STEM',
                   choices = unique(c("No Filter", dat$Stem)),
@@ -96,13 +96,13 @@ server <- function(input, output) {
   
   leaflet_dat <- reactive({
     
-    # dat <- dat %>%
-    #   filter(
-    #     (Stem == input$stem | input$stem == " " | input$stem == "No Filter"),
-    #     (Free == input$free | input$free == " " | input$free == "No Filter"),
-    #     (`Meeting Type` == input$meeting_type | input$meeting_type == " "
-    #      | input$meeting_type == "No Filter")
-    #   )
+    dat <- dat %>%
+      filter(
+        (Stem == input$stem | input$stem == " " | input$stem == "No Filter"),
+        (Free == input$free | input$free == " " | input$free == "No Filter"),
+        (`Meeting Type` == input$meeting_type | input$meeting_type == " "
+         | input$meeting_type == "No Filter")
+      )
     
     
     
@@ -171,30 +171,29 @@ server <- function(input, output) {
   
   leaflet_dat2 <- reactive({
     
-    # dat <- dat %>%
-    #   filter(
-    #     (Stem == input$stem | input$stem == " " | input$stem == "No Filter"),
-    #     (Free == input$free | input$free == " " | input$free == "No Filter"),
-    #     (`Meeting Type` == input$meeting_type | input$meeting_type == " "
-    #      | input$meeting_type == "No Filter")
-    #   )
+    dat <- dat %>%
+      filter(
+        (Stem == input$stem | input$stem == " " | input$stem == "No Filter"),
+        (Free == input$free | input$free == " " | input$free == "No Filter"),
+        (`Meeting Type` == input$meeting_type | input$meeting_type == " "
+         | input$meeting_type == "No Filter")
+      )
     
     test2 <- dat %>% 
       group_by(`Geographic Cluster Name`) %>% 
-      mutate(!!input$variable2 := median(.data[[input$variable2]])) %>% 
-      select(`Geographic Cluster Name`, !!input$variable2, Geometry) %>% 
-      mutate(label = paste0(`Geographic Cluster Name`, ": ", .data[[input$variable2]])) %>% 
+      select(`Geographic Cluster Name`, `Hardship Index Score`, Geometry) %>% 
+      mutate(label = paste0(`Geographic Cluster Name`, ": ", `Hardship Index Score`)) %>% 
       distinct() %>% 
       ungroup() %>% 
       st_as_sf() %>% 
-      mutate(quartile2 = ntile(.data[[input$variable2]], 4))    
+      mutate(quartile2 = ntile(`Hardship Index Score`, 4))    
     
     
     # Calculate quantile breakpoints
-    breaks <- quantile(test2[[input$variable2]], probs = c(0, 0.5, 1))
+    breaks <- quantile(test2$`Hardship Index Score`, probs = c(0, 0.5, 1))
     
     # Assign quartile bins as factor levels
-    test2$quartile2 <- cut(test2[[input$variable2]], breaks = breaks, labels = FALSE, include.lowest = TRUE)
+    test2$quartile2 <- cut(test2$`Hardship Index Score`, breaks = breaks, labels = FALSE, include.lowest = TRUE)
     
     # Convert quartile column to factor with appropriate levels
     test2$quartile2 <- factor(test2$quartile2, levels = 1:4)
@@ -207,8 +206,8 @@ server <- function(input, output) {
     
     leaflet_dat2 <- leaflet_dat2()
     
-    bins <- quantile(leaflet_dat2[[input$variable2]], probs = c(0, 0.5, 1))
-    pal <- colorBin(c('grey', '#1A18A0'), domain = leaflet_dat2[[input$variable2]], bins = bins)
+    bins <- quantile(leaflet_dat2$`Hardship Index Score`, probs = c(0, 0.5, 1))
+    pal <- colorBin(c('grey', '#1A18A0'), domain = leaflet_dat2$`Hardship Index Score`, bins = bins)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -222,7 +221,7 @@ server <- function(input, output) {
       ) %>% 
       addPolygons(
         data = leaflet_dat2,
-        fillColor= ~pal(leaflet_dat2[[input$variable2]]), 
+        fillColor= ~pal(leaflet_dat2$`Hardship Index Score`), 
         fillOpacity = 0.6,
         color = "white",
         weight = 1.5,
@@ -231,9 +230,9 @@ server <- function(input, output) {
       addScaleBar("bottomleft") %>% 
       addLegend(
         pal = pal, 
-        values = leaflet_dat2[[input$variable2]],
+        values = leaflet_dat2$`Hardship Index Score`,
         opacity = 0.7, 
-        title = input$variable2,
+        title = 'Hardship Index Score',
         position = "topright"
       )
     
@@ -242,7 +241,8 @@ server <- function(input, output) {
   leaflet_dat3 <- reactive({
     leaflet_dat3 <- st_join(leaflet_dat(), leaflet_dat2(), join = st_within) 
     leaflet_dat3 %>% 
-      filter(quartile1 != quartile2) 
+      filter(quartile1 != quartile2) %>% 
+      mutate(quartile2 = if_else(quartile2==1, 'Overserved', 'Underserved'))
     
   })
   output$plot3 <- renderLeaflet({
@@ -250,7 +250,7 @@ server <- function(input, output) {
     
     leaflet_dat3 = leaflet_dat3()
     
-    pal <- colorFactor(c('grey', 'yellow'), domain = leaflet_dat3$quartile2)
+    pal <- colorFactor(c('grey', 'gold'), domain = leaflet_dat3$quartile2)
     
     leaflet() %>% 
       setView(lng = -87.69, lat = 41.87, zoom = 10) %>% 
@@ -266,7 +266,7 @@ server <- function(input, output) {
         data = leaflet_dat3,
         color = "white",
         fillColor =  ~pal(leaflet_dat3$quartile2), 
-        fillOpacity = 0.6,
+        fillOpacity = 0.55,
         weight = 1.5,
         label = paste0(str_extract(leaflet_dat3$label.x, '[A-Za-z ]*'), ": ", leaflet_dat3$quartile2)
       ) %>%
@@ -275,7 +275,7 @@ server <- function(input, output) {
         pal = pal, 
         values = leaflet_dat3$quartile2,
         opacity = 0.7, 
-        title = "High vs Low Hardship",
+        title = "Program Allocation",
         position = "topright"
       )
     
