@@ -75,7 +75,8 @@ ui <- fluidPage(
                   'Meeting Type',
                   choices = unique(c("No Filter", dat$`Meeting Type`)),
                   selected = "No Filter"
-      )
+      ),
+      p("The main goal of these maps is to show that there are many underserved community areas. The leftmost map shows median capacity per capita is well spread out, but the areas that need these programs the most are concentrated in the south and west, as shown in the middle map.  The rightmost map highlights underserved areas (high hardship; low capacity) in yellow and overserved (low hardship; high capacity) areas in grey.  Filtering programs by the metrics on the left sidebar allows us to see that the large presence of underserved areas is visible in specific programs as well.")
       
     ),
     mainPanel(

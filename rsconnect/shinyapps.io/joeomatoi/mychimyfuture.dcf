@@ -5,10 +5,10 @@ account: joeomatoi
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 9133193
-bundleId: 7264962
+bundleId: 7274875
 url: https://joeomatoi.shinyapps.io/mychimyfuture/
-when: 1685060521.92237
-lastSyncTime: 1685060521.92238
+when: 1685308942.02675
+lastSyncTime: 1685308942.02676
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .ipynb_checkpoints/Kaggle-checkpoint.ipynb|.ipynb_checkpoints/MCMF-checkpoint.ipynb|.ipynb_checkpoints/Modeling-checkpoint.ipynb|chicago_population.CSV|Community_Areas_Documentation.rtf|convert_MCMF_ALL_TIME_DATA.csv|Data_Processing.ipynb|EDA.ipynb|Hardship_Index.csv|Kaggle.ipynb|MCMF_vHannah.ipynb|MCMF.ipynb|Merged_Dataset.csv|Modeling.ipynb|My Chi. My Future..ipynb|ONTO2050LAAresults20181010.csv|README.md|Test file.ipynb|Updated_Merged_Dataset.csv|Reports
+ignoredFiles: .ipynb_checkpoints/Kaggle-checkpoint.ipynb|.ipynb_checkpoints/MCMF-checkpoint.ipynb|.ipynb_checkpoints/Modeling-checkpoint.ipynb|chicago_population.CSV|Community_Areas_Documentation.rtf|convert_MCMF_ALL_TIME_DATA.csv|EDA.ipynb|Final_Binary_Hannah.csv|Final_Merged_Dataset.csv|Geo_Grouped_Hannah.csv|grouped_hannah_updated.csv|Hardship_Index.csv|MCMF_vHannah.ipynb|MCMF.ipynb|Merged_Dataset.csv|Modeling.ipynb|My Chi. My Future..ipynb|ONTO2050LAAresults20181010.csv|README.md|Test file.ipynb|Updated_Merged_Dataset.csv|Reports
